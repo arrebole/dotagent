@@ -6,8 +6,9 @@
  * Exa or Tavily based on the provider parameter. API keys live in config.ts.
  */
 
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { keyHint, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { StringEnum } from "@earendil-works/pi-ai";
+import { Container, Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import { executeExaSearch } from "./providers/exa";
 import { executeTavilySearch } from "./providers/tavily";
@@ -124,6 +125,30 @@ export default function websearchExtension(pi: ExtensionAPI) {
         includeUsage: opts.includeUsage,
         safeSearch: opts.safeSearch,
       }, signal);
+    },
+    renderCall(args, theme, context) {
+      const text = (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
+      text.setText(
+        theme.fg("toolTitle", theme.bold("websearch ")) +
+        theme.fg("accent", args.provider) +
+        " " +
+        theme.fg("muted", args.query) +
+        (!context.expanded
+          ? theme.fg("muted", " (") + keyHint("app.tools.expand", "expand") + theme.fg("muted", ") ")
+          : ""),
+      );
+      return text;
+    },
+    renderResult(result, { expanded }, theme, context) {
+      if (!expanded) return new Container();
+
+      const output = result.content
+        .filter((item) => item.type === "text")
+        .map((item) => item.text)
+        .join("\n");
+      const text = (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
+      text.setText(theme.fg(context.isError ? "error" : "dim", output));
+      return text;
     },
   });
 }
