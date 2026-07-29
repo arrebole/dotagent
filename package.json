@@ -1,0 +1,29 @@
+{
+  "name": "dotagent",
+  "version": "1.0.0",
+  "description": "agent configuration and extensions",
+  "type": "module",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arrebole/dotagent.git"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-ai": "^0.82.1",
+    "@earendil-works/pi-coding-agent": "^0.82.1",
+    "@types/node": "^24.0.0",
+    "typebox": "1.1.38",
+    "typescript": "^5.9.3"
+  },
+  "bugs": {
+    "url": "https://github.com/arrebole/dotagent/issues"
+  },
+  "homepage": "https://github.com/arrebole/dotagent#readme"
+}
