@@ -3,9 +3,6 @@
   "version": "1.0.0",
   "description": "agent configuration and extensions",
   "type": "module",
-  "engines": {
-    "node": ">=22.19.0"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/arrebole/dotagent.git"
