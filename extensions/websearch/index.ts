@@ -7,9 +7,10 @@
  */
 
 import { keyHint, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { StringEnum } from "@earendil-works/pi-ai";
+import { createProvider, StringEnum } from "@earendil-works/pi-ai";
 import { Container, Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
+import { getApiKey, missingKeyError, providerAuthId, type SearchProvider } from "./config";
 import { executeExaSearch } from "./providers/exa";
 import { executeTavilySearch } from "./providers/tavily";
 
@@ -54,7 +55,42 @@ const options = Type.Object(
   },
 );
 
+const authOnlyApi = {
+  stream() {
+    throw new Error("Search authentication providers do not support model streaming.");
+  },
+  streamSimple() {
+    throw new Error("Search authentication providers do not support model streaming.");
+  },
+};
+
 export default function websearchExtension(pi: ExtensionAPI) {
+  for (const provider of ["exa", "tavily"] as const) {
+    pi.registerProvider(createProvider({
+      id: providerAuthId(provider),
+      name: provider === "exa" ? "Exa Search" : "Tavily Search",
+      baseUrl: provider === "exa" ? "https://api.exa.ai" : "https://api.tavily.com",
+      auth: {
+        apiKey: {
+          name: `${provider === "exa" ? "Exa" : "Tavily"} API Key`,
+          async login(interaction) {
+            return {
+              type: "api_key",
+              key: await interaction.prompt({ type: "secret", message: "API Key" }),
+            };
+          },
+          async resolve({ credential }) {
+            return credential?.key
+              ? { auth: { apiKey: credential.key }, source: "auth.json" }
+              : undefined;
+          },
+        },
+      },
+      models: [],
+      api: authOnlyApi,
+    }));
+  }
+
   pi.registerTool({
     name: "websearch",
     label: "Web Search",
@@ -77,9 +113,12 @@ export default function websearchExtension(pi: ExtensionAPI) {
       endDate: Type.Optional(Type.String({ description: "Latest publication date. Exa accepts ISO 8601; Tavily requires YYYY-MM-DD." })),
       options: Type.Optional(options),
     }),
-    async execute(_toolCallId, params, signal, _onUpdate, _ctx) {
+    async execute(_toolCallId, params, signal, _onUpdate, ctx) {
       const { provider, query, numResults, includeDomains, excludeDomains, startDate, endDate } = params;
       const opts = params.options ?? {};
+      const resolvedAuth = await ctx.modelRegistry.getProviderAuth(providerAuthId(provider as SearchProvider));
+      const apiKey = resolvedAuth?.auth.apiKey?.trim() || getApiKey(provider as SearchProvider);
+      if (!apiKey) throw missingKeyError(provider as SearchProvider);
 
       if (provider === "exa") {
         return executeExaSearch({
@@ -97,7 +136,7 @@ export default function websearchExtension(pi: ExtensionAPI) {
           category: opts.category,
           maxAgeHours: opts.maxAgeHours,
           outputSchema: opts.outputSchema,
-        }, signal);
+        }, apiKey, signal);
       }
 
       return executeTavilySearch({
@@ -124,7 +163,7 @@ export default function websearchExtension(pi: ExtensionAPI) {
         exactMatch: opts.exactMatch,
         includeUsage: opts.includeUsage,
         safeSearch: opts.safeSearch,
-      }, signal);
+      }, apiKey, signal);
     },
     renderCall(args, theme, context) {
       const text = (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);

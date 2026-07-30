@@ -1,6 +1,6 @@
 import type { Static } from "typebox";
 import { Type } from "typebox";
-import { getApiKey, missingKeyError } from "../config";
+import { missingKeyError } from "../config";
 import { formatTavilyResults } from "../formatters";
 import { fetchWithTimeout } from "../http";
 
@@ -37,8 +37,7 @@ export const tavilyParameters = Type.Object({
 
 export type TavilySearchParams = Static<typeof tavilyParameters>;
 
-export async function executeTavilySearch(params: TavilySearchParams, signal?: AbortSignal) {
-  const apiKey = getApiKey("tavily");
+export async function executeTavilySearch(params: TavilySearchParams, apiKey: string, signal?: AbortSignal) {
   if (!apiKey) throw missingKeyError("tavily");
 
   const includeAnswer = params.includeAnswer === false ? false : params.answerDepth ?? params.includeAnswer ?? true;

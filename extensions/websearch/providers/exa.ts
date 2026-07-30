@@ -1,6 +1,6 @@
 import type { Static } from "typebox";
 import { Type } from "typebox";
-import { getApiKey, missingKeyError } from "../config";
+import { missingKeyError } from "../config";
 import { formatExaResults } from "../formatters";
 import { fetchWithTimeout } from "../http";
 
@@ -29,8 +29,7 @@ export const exaParameters = Type.Object({
 
 export type ExaSearchParams = Static<typeof exaParameters>;
 
-export async function executeExaSearch(params: ExaSearchParams, signal?: AbortSignal) {
-  const apiKey = getApiKey("exa");
+export async function executeExaSearch(params: ExaSearchParams, apiKey: string, signal?: AbortSignal) {
   if (!apiKey) throw missingKeyError("exa");
 
   const body: Record<string, unknown> = {
