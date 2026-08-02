@@ -85,14 +85,13 @@ export function parseAgentDefinition(
     return {
       name,
       description,
-      systemPrompt: frontmatter.systemPrompt,
       model: frontmatter.model,
-      thinking: frontmatter.thinking,
+      effort: frontmatter.effort,
       tools: frontmatter.tools,
       skills: frontmatter.skills,
       background: frontmatter.background,
       metadata: serializeValue(frontmatter.metadata),
-      body: body.trim(),
+      systemPrompt: body.trim(),
     };
   } catch {
     // 单个定义的 YAML 无效时跳过，不影响加载其他 agent。
