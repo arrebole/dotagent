@@ -49,17 +49,6 @@ function readAgentFile(filePath: string): string | undefined {
   return result;
 }
 
-function serializeValue(value: unknown): string | undefined {
-  const text = parseString(value);
-  if (text !== undefined) return text;
-  if (value === undefined || value === null) return undefined;
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return undefined;
-  }
-}
-
 /**
  * 将 Markdown 中的 agent 定义转换为标准定义结构。
  * 支持逗号分隔和 YAML 数组形式的 tools/skills。
@@ -90,8 +79,7 @@ export function parseAgentDefinition(
       tools: frontmatter.tools,
       skills: frontmatter.skills,
       background: frontmatter.background,
-      metadata: serializeValue(frontmatter.metadata),
-      systemPrompt: body.trim(),
+      prompt: body.trim(),
     };
   } catch {
     // 单个定义的 YAML 无效时跳过，不影响加载其他 agent。
