@@ -4,19 +4,13 @@ export type AgentSource = "user" | "project";
 export interface AgentDefinition {
   name: string;
   description: string;
-  systemPrompt: string;
   model?: string;
-  thinking?: string;
+  effort?: string;
   tools?: string[];
-  disallowedTools?: string;
   skills?: string[];
   background?: boolean;
-  inputSchema?: string;
-  outputSchema?: string;
-  version?: string;
-  metadata?: string;
   source: AgentSource;
-  body: string;
+  prompt: string;
 }
 
 export class SubAgent {
