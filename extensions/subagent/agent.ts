@@ -1,5 +1,7 @@
 export type AgentSource = "user" | "project";
 
+export const THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
+
 // 子agent定义，于 agents/*.md 定义
 export interface AgentDefinition {
   name: string;
@@ -9,7 +11,6 @@ export interface AgentDefinition {
   tools?: string[];
   skills?: string[];
   background?: boolean;
-  source: AgentSource;
   prompt: string;
 }
 

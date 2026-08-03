@@ -10,8 +10,14 @@ export function getAgentConfigDir() {
   return join(homedir(), CONFIG_DIR_NAME, "agent");
 }
 
-
-export function getFrontmatterValue(frontmatter: string, key: string): string | undefined {
-  const match = frontmatter.match(new RegExp(`^${key}:\\s*(.+)$`, "m"));
-  return match ? match[1].trim() : undefined;
+/**
+ * 将字符串分隔为字符串数组
+ * @param value
+ * @returns
+ */
+export function safeSplit(value: any): string[] {
+  if (typeof value != "string") {
+    return []
+  }
+  return value.split(",");
 }

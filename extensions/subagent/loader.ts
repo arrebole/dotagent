@@ -10,6 +10,7 @@ import {
 } from "node:fs";
 import { getAgentDir, parseFrontmatter } from "@earendil-works/pi-coding-agent";
 import type { AgentDefinition, AgentSource } from "./agent";
+import { safeSplit } from "./commom";
 
 /**
  * 读取指定的 agent 定义文件，返回 utf8 的字符串的内容
@@ -59,7 +60,7 @@ function readAgentFile(filePath: string): string | undefined {
 export function parseAgentDefinition(
   content: string,
   fallbackName: string,
-): ParsedAgentDefinition | null {
+): AgentDefinition | null {
   // 无 body 属于无效的 agent 定义
   if (!/^---(?:\r\n|\n|\r)/.test(content)) return null;
 
@@ -72,13 +73,13 @@ export function parseAgentDefinition(
     if (!name || !description) return null;
 
     return {
-      name,
-      description,
-      model: frontmatter.model,
-      effort: frontmatter.effort,
-      tools: frontmatter.tools,
-      skills: frontmatter.skills,
-      background: frontmatter.background,
+      name: name as string,
+      description: description as string,
+      model: frontmatter.model as string,
+      effort: frontmatter.effort as string,
+      tools: safeSplit(frontmatter.tools) as  Array<string>,
+      skills: safeSplit(frontmatter.skills) as Array<string>,
+      background: !!frontmatter.background as boolean,
       prompt: body.trim(),
     };
   } catch {
@@ -111,7 +112,7 @@ export function discoverAgentDefinitions(): AgentDefinition[] {
       if (!parsed) {
         continue;
       }
-      agents.set(parsed.name, { ...parsed, source });
+      agents.set(parsed.name, { ...parsed });
     }
   }
 
