@@ -9,7 +9,7 @@ import {
   readSync,
 } from "node:fs";
 import { getAgentDir, parseFrontmatter } from "@earendil-works/pi-coding-agent";
-import type { AgentDefinition, AgentSource } from "./agent";
+import type { AgentConfig, AgentSource } from "./agent";
 import { safeSplit } from "./commom";
 
 /**
@@ -17,37 +17,12 @@ import { safeSplit } from "./commom";
  * @param filePath 文件路径
  * @returns 
  */
-function readAgentFile(filePath: string): string | undefined {
-  let fileDescriptor: number | undefined;
-  let result: string | undefined = undefined;
+function readAgentFile(filePath: string): string｛
   try {
-    fileDescriptor = openSync(filePath, constants.O_RDONLY);
-    const stats = fstatSync(fileDescriptor);
-    if (!stats.isFile()) return undefined;
-
-    const content = Buffer.alloc(stats.size);
-    let offset = 0;
-    while (offset < content.length) {
-      const bytesRead = readSync(
-        fileDescriptor,
-        content,
-        offset,
-        content.length - offset,
-        offset,
-      );
-      if (bytesRead === 0) break;
-      offset += bytesRead;
-    }
-    result = content.subarray(0, offset).toString("utf8");
-  } finally {
-    if (fileDescriptor !== undefined) closeSync(fileDescriptor);
+    return fs.readFileSync(filePath, "utf-8");
+  } catch {
+    return "";
   }
-
-  // 去掉所有开头的 BOM 变体
-  if (result && result.startsWith("\uFEFF")) {
-    result = result.slice(1)
-  }
-  return result;
 }
 
 /**
@@ -57,10 +32,7 @@ function readAgentFile(filePath: string): string | undefined {
  * @param content agent 定义文件内容
  * @param fallbackName frontmatter 未提供 name 时使用的文件名
  */
-export function parseAgentDefinition(
-  content: string,
-  fallbackName: string,
-): AgentDefinition | null {
+export function parseAgentConfig(content: string, fallbackName: string): AgentConfig | null {
   // 无 body 属于无效的 agent 定义
   if (!/^---(?:\r\n|\n|\r)/.test(content)) return null;
 
@@ -80,7 +52,7 @@ export function parseAgentDefinition(
       tools: safeSplit(frontmatter.tools) as  Array<string>,
       skills: safeSplit(frontmatter.skills) as Array<string>,
       background: !!frontmatter.background as boolean,
-      prompt: body.trim(),
+      systemPrompt: body.trim(),
     };
   } catch {
     // 单个定义的 YAML 无效时跳过，不影响加载其他 agent。
@@ -94,8 +66,8 @@ export function parseAgentDefinition(
  * 项目级别配置 ${cwd}/.pi/agent/agents/*.md
  * @returns 
  */
-export function discoverAgentDefinitions(): AgentDefinition[] {
-  const agents = new Map<string, AgentDefinition>();
+export function discoverAgents(): AgentConfig[] {
+  const agents = new Map<string, AgentConfig>();
   const dirs: Array<{ path: string; source: AgentSource }> = [
     { path: join(getAgentDir(), "agents"), source: "user" },
     { path: join(process.cwd(), ".pi", "agents"), source: "project" },
@@ -108,11 +80,11 @@ export function discoverAgentDefinitions(): AgentDefinition[] {
       if (!content) {
         continue;
       }
-      const parsed = parseAgentDefinition(content, file.replace(/\.md$/, ""));
+      const parsed = parseAgentConfig(content, file.replace(/\.md$/, ""));
       if (!parsed) {
         continue;
       }
-      agents.set(parsed.name, { ...parsed });
+      agents.set(parsed.name, parsed);
     }
   }
 
