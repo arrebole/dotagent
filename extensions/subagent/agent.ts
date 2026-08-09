@@ -2,8 +2,8 @@ export type AgentSource = "user" | "project";
 
 export const THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
 
-// 子agent定义，于 agents/*.md 定义
-export interface AgentDefinition {
+// 子agent定义，于 $CONFIG_PATH/agents/*.md 定义
+export interface AgentConfig {
   name: string;
   description: string;
   model?: string;
