@@ -7,7 +7,7 @@ export interface AgentConfig {
   name: string;
   description: string;
   model?: string;
-  effort?: string;
+  thinking?: string;
   tools?: string[];
   skills?: string[];
   background?: boolean;
