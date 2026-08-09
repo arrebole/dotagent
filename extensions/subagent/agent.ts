@@ -11,7 +11,7 @@ export interface AgentConfig {
   tools?: string[];
   skills?: string[];
   background?: boolean;
-  prompt: string;
+  systemPrompt: string;
 }
 
 export class SubAgent {
