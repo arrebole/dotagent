@@ -1,13 +1,5 @@
 import { join } from "node:path";
-import {
-  closeSync,
-  constants,
-  existsSync,
-  fstatSync,
-  openSync,
-  readdirSync,
-  readSync,
-} from "node:fs";
+import { readFile, readdir } from "node:fs/promises";
 import { getAgentDir, parseFrontmatter } from "@earendil-works/pi-coding-agent";
 import type { AgentConfig, AgentSource } from "./agent";
 import { safeSplit } from "./commom";
@@ -17,9 +9,9 @@ import { safeSplit } from "./commom";
  * @param filePath 文件路径
  * @returns 
  */
-function readAgentFile(filePath: string): string｛
+async function readAgentFile(filePath: string): Promise<string> {
   try {
-    return fs.readFileSync(filePath, "utf-8");
+    return await readFile(filePath, "utf-8");
   } catch {
     return "";
   }
@@ -66,25 +58,31 @@ export function parseAgentConfig(content: string, fallbackName: string): AgentCo
  * 项目级别配置 ${cwd}/.pi/agent/agents/*.md
  * @returns 
  */
-export function discoverAgents(): AgentConfig[] {
+export async function discoverAgentConfigs(): Promise<AgentConfig[]> {
   const agents = new Map<string, AgentConfig>();
   const dirs: Array<{ path: string; source: AgentSource }> = [
     { path: join(getAgentDir(), "agents"), source: "user" },
     { path: join(process.cwd(), ".pi", "agents"), source: "project" },
   ];
 
-  for (const { path: dir, source } of dirs) {
-    if (!existsSync(dir)) continue;
-    for (const file of readdirSync(dir).filter((entry) => entry.endsWith(".md"))) {
-      const content = readAgentFile(join(dir, file));
-      if (!content) {
-        continue;
-      }
-      const parsed = parseAgentConfig(content, file.replace(/\.md$/, ""));
-      if (!parsed) {
-        continue;
-      }
-      agents.set(parsed.name, parsed);
+  for (const { path: dir } of dirs) {
+    let files: string[];
+    try {
+      files = (await readdir(dir)).filter((entry) => entry.endsWith(".md"));
+    } catch {
+      continue;
+    }
+
+    const definitions = await Promise.all(
+      files.map(async (file) => {
+        const content = await readAgentFile(join(dir, file));
+        if (!content) return null;
+        return parseAgentConfig(content, file.replace(/\.md$/, ""));
+      }),
+    );
+
+    for (const parsed of definitions) {
+      if (parsed) agents.set(parsed.name, parsed);
     }
   }
 
