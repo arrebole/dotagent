@@ -35,11 +35,6 @@ export default async function subagentExtension(pi: ExtensionAPI) {
           description: `Thinking level (${THINKING_LEVELS.join(",")}). Overrides agent default.`,
         }),
       ),
-      fork: Type.Optional(
-        Type.Boolean({
-          description: "If true, fork parent conversation into the agent. Default: false (fresh context).",
-        }),
-      ),
       background: Type.Optional(
         Type.Boolean({
           description: "Set to true to run in background. Returns agent ID immediately. You will be notified on completion.",
