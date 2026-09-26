@@ -1,74 +1,57 @@
-import type { Static } from "typebox";
-import { Type } from "typebox";
 import { missingKeyError } from "../config";
 import { formatTavilyResults } from "../formatters";
 import { fetchWithTimeout } from "../http";
+import type { SearchProviderAdapter, SearchRequest } from "./types";
 
-export const tavilyParameters = Type.Object({
-  query: Type.String(),
-  maxResults: Type.Optional(Type.Integer({ minimum: 0, maximum: 20, default: 10 })),
-  searchDepth: Type.Optional(Type.Union([
-    Type.Literal("basic"), Type.Literal("advanced"), Type.Literal("fast"), Type.Literal("ultra-fast"),
-  ])),
-  topic: Type.Optional(Type.Union([Type.Literal("general"), Type.Literal("news"), Type.Literal("finance")])),
-  days: Type.Optional(Type.Integer({ minimum: 1 })),
-  timeRange: Type.Optional(Type.Union([
-    Type.Literal("day"), Type.Literal("week"), Type.Literal("month"), Type.Literal("year"),
-    Type.Literal("d"), Type.Literal("w"), Type.Literal("m"), Type.Literal("y"),
-  ])),
-  startDate: Type.Optional(Type.String({ pattern: "^\\d{4}-\\d{2}-\\d{2}$" })),
-  endDate: Type.Optional(Type.String({ pattern: "^\\d{4}-\\d{2}-\\d{2}$" })),
-  chunksPerSource: Type.Optional(Type.Integer({ minimum: 1, maximum: 3 })),
-  includeAnswer: Type.Optional(Type.Boolean()),
-  answerDepth: Type.Optional(Type.Union([Type.Literal("basic"), Type.Literal("advanced")])),
-  includeRawContent: Type.Optional(Type.Boolean()),
-  rawContentFormat: Type.Optional(Type.Union([Type.Literal("markdown"), Type.Literal("text")])),
-  includeImages: Type.Optional(Type.Boolean()),
-  includeImageDescriptions: Type.Optional(Type.Boolean()),
-  includeFavicon: Type.Optional(Type.Boolean()),
-  includeDomains: Type.Optional(Type.Array(Type.String(), { maxItems: 300 })),
-  excludeDomains: Type.Optional(Type.Array(Type.String(), { maxItems: 150 })),
-  country: Type.Optional(Type.String()),
-  autoParameters: Type.Optional(Type.Boolean()),
-  exactMatch: Type.Optional(Type.Boolean()),
-  includeUsage: Type.Optional(Type.Boolean()),
-  safeSearch: Type.Optional(Type.Boolean()),
-});
+const baseUrl = "https://api.tavily.com";
 
-export type TavilySearchParams = Static<typeof tavilyParameters>;
+function validate(request: SearchRequest): void {
+  if (request.numResults !== undefined && request.numResults > 20) {
+    throw new Error("Tavily 的 numResults 最大为 20，请调整参数后重试。");
+  }
+  const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+  for (const [name, value] of [["startDate", request.startDate], ["endDate", request.endDate]] as const) {
+    if (value !== undefined && !datePattern.test(value)) {
+      throw new Error(`Tavily 的 ${name} 必须使用 YYYY-MM-DD 格式。`);
+    }
+  }
+  if (request.startDate && request.endDate && request.startDate > request.endDate) {
+    throw new Error("Tavily 的 startDate 不能晚于 endDate。");
+  }
+}
 
-export async function executeTavilySearch(params: TavilySearchParams, apiKey: string, signal?: AbortSignal) {
-  if (!apiKey) throw missingKeyError("tavily");
-
-  const includeAnswer = params.includeAnswer === false ? false : params.answerDepth ?? params.includeAnswer ?? true;
-  const includeRawContent = params.includeRawContent === false
+async function executeSearch(request: SearchRequest, apiKey: string, signal?: AbortSignal) {
+  if (!apiKey) throw missingKeyError(tavily);
+  const opts = request.options ?? {};
+  const includeAnswer = opts.includeAnswer === false ? false : opts.answerDepth ?? opts.includeAnswer ?? true;
+  const includeRawContent = opts.includeRawContent === false
     ? false
-    : params.rawContentFormat ?? params.includeRawContent ?? false;
+    : opts.rawContentFormat ?? opts.includeRawContent ?? false;
   const body: Record<string, unknown> = {
-    query: params.query,
-    max_results: params.maxResults ?? 10,
-    search_depth: params.searchDepth ?? "basic",
-    topic: params.topic ?? "general",
+    query: request.query,
+    max_results: request.numResults ?? 10,
+    search_depth: opts.searchDepth ?? "basic",
+    topic: opts.topic ?? "general",
     include_answer: includeAnswer,
     include_raw_content: includeRawContent,
-    include_images: params.includeImages ?? false,
-    include_image_descriptions: params.includeImageDescriptions ?? false,
-    include_favicon: params.includeFavicon ?? false,
-    auto_parameters: params.autoParameters ?? false,
-    exact_match: params.exactMatch ?? false,
-    include_usage: params.includeUsage ?? false,
-    safe_search: params.safeSearch ?? false,
+    include_images: opts.includeImages ?? false,
+    include_image_descriptions: opts.includeImageDescriptions ?? false,
+    include_favicon: opts.includeFavicon ?? false,
+    auto_parameters: opts.autoParameters ?? false,
+    exact_match: opts.exactMatch ?? false,
+    include_usage: opts.includeUsage ?? false,
+    safe_search: opts.safeSearch ?? false,
   };
-  if (params.days !== undefined) body.days = params.days;
-  if (params.timeRange) body.time_range = params.timeRange;
-  if (params.startDate) body.start_date = params.startDate;
-  if (params.endDate) body.end_date = params.endDate;
-  if (params.chunksPerSource !== undefined) body.chunks_per_source = params.chunksPerSource;
-  if (params.includeDomains?.length) body.include_domains = params.includeDomains;
-  if (params.excludeDomains?.length) body.exclude_domains = params.excludeDomains;
-  if (params.country) body.country = params.country;
+  if (opts.days !== undefined) body.days = opts.days;
+  if (opts.timeRange) body.time_range = opts.timeRange;
+  if (request.startDate) body.start_date = request.startDate;
+  if (request.endDate) body.end_date = request.endDate;
+  if (opts.chunksPerSource !== undefined) body.chunks_per_source = opts.chunksPerSource;
+  if (request.includeDomains?.length) body.include_domains = request.includeDomains;
+  if (request.excludeDomains?.length) body.exclude_domains = request.excludeDomains;
+  if (opts.country) body.country = opts.country;
 
-  const response = await fetchWithTimeout("https://api.tavily.com/search", {
+  const response = await fetchWithTimeout(`${baseUrl}/search`, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -92,3 +75,16 @@ export async function executeTavilySearch(params: TavilySearchParams, apiKey: st
     },
   };
 }
+
+const tavily = {
+  id: "tavily",
+  name: "Tavily Search",
+  apiKeyName: "Tavily API Key",
+  apiKeyEnv: "TAVILY_API_KEY",
+  authId: "api.tavily.com/default",
+  baseUrl,
+  validate,
+  executeSearch,
+} satisfies SearchProviderAdapter;
+
+export default tavily;

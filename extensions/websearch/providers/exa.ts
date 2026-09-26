@@ -1,59 +1,36 @@
-import type { Static } from "typebox";
-import { Type } from "typebox";
 import { missingKeyError } from "../config";
 import { formatExaResults } from "../formatters";
 import { fetchWithTimeout } from "../http";
+import type { SearchProviderAdapter, SearchRequest } from "./types";
 
-export const exaParameters = Type.Object({
-  query: Type.String(),
-  numResults: Type.Optional(Type.Integer({ minimum: 1, maximum: 100, default: 10 })),
-  type: Type.Optional(Type.Union([
-    Type.Literal("auto"), Type.Literal("fast"), Type.Literal("instant"),
-    Type.Literal("deep-lite"), Type.Literal("deep"), Type.Literal("deep-reasoning"),
-  ])),
-  highlights: Type.Optional(Type.Boolean()),
-  text: Type.Optional(Type.Boolean()),
-  maxTextCharacters: Type.Optional(Type.Integer({ minimum: 1 })),
-  summary: Type.Optional(Type.Boolean()),
-  category: Type.Optional(Type.Union([
-    Type.Literal("company"), Type.Literal("people"), Type.Literal("research paper"),
-    Type.Literal("news"), Type.Literal("personal site"), Type.Literal("financial report"),
-  ])),
-  includeDomains: Type.Optional(Type.Array(Type.String())),
-  excludeDomains: Type.Optional(Type.Array(Type.String())),
-  startPublishedDate: Type.Optional(Type.String()),
-  endPublishedDate: Type.Optional(Type.String()),
-  maxAgeHours: Type.Optional(Type.Integer({ minimum: -1 })),
-  outputSchema: Type.Optional(Type.Record(Type.String(), Type.Any())),
-});
+const baseUrl = "https://api.exa.ai";
 
-export type ExaSearchParams = Static<typeof exaParameters>;
-
-export async function executeExaSearch(params: ExaSearchParams, apiKey: string, signal?: AbortSignal) {
-  if (!apiKey) throw missingKeyError("exa");
+async function executeSearch(request: SearchRequest, apiKey: string, signal?: AbortSignal) {
+  if (!apiKey) throw missingKeyError(exa);
+  const opts = request.options ?? {};
 
   const body: Record<string, unknown> = {
-    query: params.query,
-    type: params.type ?? "auto",
-    numResults: params.numResults ?? 10,
+    query: request.query,
+    type: opts.type ?? "auto",
+    numResults: request.numResults ?? 10,
   };
-  if (params.category) body.category = params.category;
-  if (params.includeDomains?.length) body.includeDomains = params.includeDomains;
-  if (params.excludeDomains?.length) body.excludeDomains = params.excludeDomains;
-  if (params.startPublishedDate) body.startPublishedDate = params.startPublishedDate;
-  if (params.endPublishedDate) body.endPublishedDate = params.endPublishedDate;
+  if (opts.category) body.category = opts.category;
+  if (request.includeDomains?.length) body.includeDomains = request.includeDomains;
+  if (request.excludeDomains?.length) body.excludeDomains = request.excludeDomains;
+  if (request.startDate) body.startPublishedDate = request.startDate;
+  if (request.endDate) body.endPublishedDate = request.endDate;
 
   const contents: Record<string, unknown> = {};
-  if (params.highlights !== false) contents.highlights = true;
-  if (params.text === true) {
-    contents.text = params.maxTextCharacters ? { maxCharacters: params.maxTextCharacters } : true;
+  if (opts.highlights !== false) contents.highlights = true;
+  if (opts.text === true) {
+    contents.text = opts.maxTextCharacters ? { maxCharacters: opts.maxTextCharacters } : true;
   }
-  if (params.summary === true) contents.summary = true;
-  if (params.maxAgeHours !== undefined) contents.maxAgeHours = params.maxAgeHours;
+  if (opts.summary === true) contents.summary = true;
+  if (opts.maxAgeHours !== undefined) contents.maxAgeHours = opts.maxAgeHours;
   if (Object.keys(contents).length) body.contents = contents;
-  if (params.outputSchema) body.outputSchema = params.outputSchema;
+  if (opts.outputSchema) body.outputSchema = opts.outputSchema;
 
-  const response = await fetchWithTimeout("https://api.exa.ai/search", {
+  const response = await fetchWithTimeout(`${baseUrl}/search`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-api-key": apiKey },
     body: JSON.stringify(body),
@@ -76,3 +53,15 @@ export async function executeExaSearch(params: ExaSearchParams, apiKey: string, 
     },
   };
 }
+
+const exa = {
+  id: "exa",
+  name: "Exa Search",
+  apiKeyName: "Exa API Key",
+  apiKeyEnv: "EXA_API_KEY",
+  authId: "api.exa.ai/default",
+  baseUrl,
+  executeSearch,
+} satisfies SearchProviderAdapter;
+
+export default exa;

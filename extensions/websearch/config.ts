@@ -1,26 +1,11 @@
-export type SearchProvider = "exa" | "tavily";
+import type { SearchProviderAdapter } from "./providers/types";
 
-const AUTH_PROVIDER_ID: Record<SearchProvider, string> = {
-  exa: "api.exa.ai/default",
-  tavily: "api.tavily.com/default",
-};
-
-const API_KEY_ENV: Record<SearchProvider, "EXA_API_KEY" | "TAVILY_API_KEY"> = {
-  exa: "EXA_API_KEY",
-  tavily: "TAVILY_API_KEY",
-};
-
-export function providerAuthId(provider: SearchProvider): string {
-  return AUTH_PROVIDER_ID[provider];
+export function getApiKey(provider: SearchProviderAdapter): string | undefined {
+  return process.env[provider.apiKeyEnv]?.trim() || undefined;
 }
 
-export function getApiKey(provider: SearchProvider): string | undefined {
-  return process.env[API_KEY_ENV[provider]]?.trim() || undefined;
-}
-
-export function missingKeyError(provider: SearchProvider): Error {
-  const envName = API_KEY_ENV[provider];
+export function missingKeyError(provider: SearchProviderAdapter): Error {
   return new Error(
-    `No API key is configured for ${provider}. Add ${providerAuthId(provider)} to ~/.pi/agent/auth.json or set ${envName}.`,
+    `未配置 ${provider.name} 的 API 密钥。请在 ~/.pi/agent/auth.json 中配置 ${provider.authId}，或设置 ${provider.apiKeyEnv}。`,
   );
 }

@@ -10,50 +10,14 @@ import { keyHint, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { createProvider, StringEnum } from "@earendil-works/pi-ai";
 import { Container, Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
-import { getApiKey, missingKeyError, providerAuthId, type SearchProvider } from "./config";
-import { executeExaSearch } from "./providers/exa";
-import { executeTavilySearch } from "./providers/tavily";
+import { getApiKey, missingKeyError } from "./config";
+import exa from "./providers/exa";
+import tavily from "./providers/tavily";
+import { searchOptions } from "./providers/options";
+import type { SearchProvider, SearchRequest, SearchProviderAdapter } from "./providers/types";
 
-// Provider-specific advanced options. Common options (result count, domain
-// filters, date range) are promoted to the top level and mapped per provider.
-const options = Type.Object(
-  {
-    // ── Exa advanced options ──────────────────
-    type: Type.Optional(StringEnum(["auto", "fast", "instant", "deep-lite", "deep", "deep-reasoning"] as const, { default: "auto", description: "[Exa] Search mode. Use deep or deep-reasoning for multi-step research." })),
-    highlights: Type.Optional(Type.Boolean({ default: true, description: "[Exa] Return query-relevant excerpts per result." })),
-    text: Type.Optional(Type.Boolean({ default: false, description: "[Exa] Return full page text as markdown (higher latency)." })),
-    maxTextCharacters: Type.Optional(Type.Integer({ minimum: 1, description: "[Exa] Max characters per full-text result; requires text=true." })),
-    summary: Type.Optional(Type.Boolean({ default: false, description: "[Exa] Generate an LLM summary per result." })),
-    category: Type.Optional(StringEnum(["company", "people", "research paper", "news", "personal site", "financial report"] as const, { description: "[Exa] Restrict results to a specialized category." })),
-    maxAgeHours: Type.Optional(Type.Integer({ minimum: -1, description: "[Exa] Freshness: 0 forces live crawl, -1 cache only." })),
-    outputSchema: Type.Optional(Type.Record(Type.String(), Type.Any(), { description: "[Exa] JSON Schema for structured/synthesized output." })),
+const providers: Record<SearchProvider, SearchProviderAdapter> = { exa, tavily };
 
-    // ── Tavily advanced options ───────────────
-    searchDepth: Type.Optional(StringEnum(["basic", "advanced", "fast", "ultra-fast"] as const, { default: "basic", description: "[Tavily] Search depth / latency mode; advanced enables deeper retrieval." })),
-    topic: Type.Optional(StringEnum(["general", "news", "finance"] as const, { default: "general", description: "[Tavily] Search topic. Use news for recency, finance for markets." })),
-    days: Type.Optional(Type.Integer({ minimum: 1, description: "[Tavily] Limit results to the last N days (mainly for topic=news)." })),
-    timeRange: Type.Optional(StringEnum(["day", "week", "month", "year", "d", "w", "m", "y"] as const, { description: "[Tavily] Relative publication time range." })),
-    chunksPerSource: Type.Optional(Type.Integer({ minimum: 1, maximum: 3, description: "[Tavily] Relevant chunks per source (advanced depth only)." })),
-    includeAnswer: Type.Optional(Type.Boolean({ default: true, description: "[Tavily] Include an AI-generated answer." })),
-    answerDepth: Type.Optional(StringEnum(["basic", "advanced"] as const, { description: "[Tavily] Generated-answer depth." })),
-    includeRawContent: Type.Optional(Type.Boolean({ default: false, description: "[Tavily] Include cleaned full page content per result." })),
-    rawContentFormat: Type.Optional(StringEnum(["markdown", "text"] as const, { description: "[Tavily] Raw-content format." })),
-    includeImages: Type.Optional(Type.Boolean({ default: false, description: "[Tavily] Include image results." })),
-    includeImageDescriptions: Type.Optional(Type.Boolean({ default: false, description: "[Tavily] Add descriptions to image results." })),
-    includeFavicon: Type.Optional(Type.Boolean({ default: false, description: "[Tavily] Include favicon URLs." })),
-    country: Type.Optional(Type.String({ description: "[Tavily] Boost sources from this country (topic=general only)." })),
-    autoParameters: Type.Optional(Type.Boolean({ default: false, description: "[Tavily] Let Tavily auto-tune parameters from the query." })),
-    exactMatch: Type.Optional(Type.Boolean({ default: false, description: "[Tavily] Require quoted phrases to match exactly." })),
-    includeUsage: Type.Optional(Type.Boolean({ default: false, description: "[Tavily] Include API credit usage metadata." })),
-    safeSearch: Type.Optional(Type.Boolean({ default: false, description: "[Tavily] Enable enterprise safe-search filtering." })),
-  },
-  {
-    description:
-      "Provider-specific advanced options. [Exa]: type, highlights, text, maxTextCharacters, summary, category, maxAgeHours, outputSchema (semantic depth, content extraction, structured output). " +
-      "[Tavily]: searchDepth, topic, days, timeRange, chunksPerSource, includeAnswer, answerDepth, includeRawContent, rawContentFormat, includeImages, includeImageDescriptions, includeFavicon, country, autoParameters, exactMatch, includeUsage, safeSearch (news/finance topics, generated answers, images). " +
-      "Options for the non-selected provider are ignored.",
-  },
-);
 
 const authOnlyApi = {
   stream() {
@@ -65,14 +29,14 @@ const authOnlyApi = {
 };
 
 export default function websearchExtension(pi: ExtensionAPI) {
-  for (const provider of ["exa", "tavily"] as const) {
+  for (const provider of Object.values(providers)) {
     pi.registerProvider(createProvider({
-      id: providerAuthId(provider),
-      name: provider === "exa" ? "Exa Search" : "Tavily Search",
-      baseUrl: provider === "exa" ? "https://api.exa.ai" : "https://api.tavily.com",
+      id: provider.authId,
+      name: provider.name,
+      baseUrl: provider.baseUrl,
       auth: {
         apiKey: {
-          name: `${provider === "exa" ? "Exa" : "Tavily"} API Key`,
+          name: provider.apiKeyName,
           async login(interaction) {
             return {
               type: "api_key",
@@ -95,75 +59,39 @@ export default function websearchExtension(pi: ExtensionAPI) {
     name: "websearch",
     label: "Web Search",
     description:
-      "Search the web through a selected provider. Choose Exa for semantic search, deep research, " +
-      "high-quality highlights, full-page extraction, and structured output. Choose Tavily for fast " +
-      "ranked results, current news or finance searches, generated answers, and images. " +
-      "Common options are top-level; provider-specific advanced options go in `options`.",
-    promptSnippet: "Search the web with Exa (semantic/deep research) or Tavily (fast news/finance/answers)",
+      "联网检索：新闻、财经或快速查询选 Tavily；语义检索、深入研究或结构化输出选 Exa。" +
+      "常用参数在顶层，服务商专属参数放在 options；网页正文只返回截取内容，单次输出最多约 24KB。" +
+      "生成的回答不是原始证据，重要结论请核验结果中的来源链接。",
+    promptSnippet: "联网搜索：新闻/财经选 Tavily；语义研究/结构化输出选 Exa；重要结论核验来源",
     parameters: Type.Object({
       provider: StringEnum(["exa", "tavily"] as const, {
-        description:
-          "Search provider. exa: semantic/deep research, content extraction, structured output. tavily: fast general/news/finance lookup with generated answers.",
+        description: "搜索服务商：Tavily 用于快速查询、新闻和财经；Exa 用于语义检索、深入研究和结构化输出。",
       }),
-      query: Type.String({ description: "Search query string." }),
-      numResults: Type.Optional(Type.Integer({ minimum: 1, maximum: 100, default: 10, description: "Number of results (default 10). Exa allows up to 100; Tavily caps at 20." })),
-      includeDomains: Type.Optional(Type.Array(Type.String(), { description: "Only return results from these domains." })),
-      excludeDomains: Type.Optional(Type.Array(Type.String(), { description: "Exclude results from these domains." })),
-      startDate: Type.Optional(Type.String({ description: "Earliest publication date. Exa accepts ISO 8601; Tavily requires YYYY-MM-DD." })),
-      endDate: Type.Optional(Type.String({ description: "Latest publication date. Exa accepts ISO 8601; Tavily requires YYYY-MM-DD." })),
-      options: Type.Optional(options),
+      query: Type.String({ description: "搜索词；尽量聚焦一个具体问题。" }),
+      numResults: Type.Optional(Type.Integer({ minimum: 1, maximum: 100, default: 10, description: "结果数量，默认 10。Exa 最多 100；Tavily 最多 20，超出会报错。" })),
+      includeDomains: Type.Optional(Type.Array(Type.String(), { description: "仅搜索这些域名。" })),
+      excludeDomains: Type.Optional(Type.Array(Type.String(), { description: "排除这些域名。" })),
+      startDate: Type.Optional(Type.String({ description: "最早发布日期；Exa 接受 ISO 8601，Tavily 要求 YYYY-MM-DD。" })),
+      endDate: Type.Optional(Type.String({ description: "最晚发布日期；Exa 接受 ISO 8601，Tavily 要求 YYYY-MM-DD。" })),
+      options: Type.Optional(searchOptions),
     }),
     async execute(_toolCallId, params, signal, _onUpdate, ctx) {
-      const { provider, query, numResults, includeDomains, excludeDomains, startDate, endDate } = params;
-      const opts = params.options ?? {};
-      const resolvedAuth = await ctx.modelRegistry.getProviderAuth(providerAuthId(provider as SearchProvider));
-      const apiKey = resolvedAuth?.auth.apiKey?.trim() || getApiKey(provider as SearchProvider);
-      if (!apiKey) throw missingKeyError(provider as SearchProvider);
-
-      if (provider === "exa") {
-        return executeExaSearch({
-          query,
-          numResults,
-          includeDomains,
-          excludeDomains,
-          startPublishedDate: startDate,
-          endPublishedDate: endDate,
-          type: opts.type,
-          highlights: opts.highlights,
-          text: opts.text,
-          maxTextCharacters: opts.maxTextCharacters,
-          summary: opts.summary,
-          category: opts.category,
-          maxAgeHours: opts.maxAgeHours,
-          outputSchema: opts.outputSchema,
-        }, apiKey, signal);
-      }
-
-      return executeTavilySearch({
-        query,
-        maxResults: numResults !== undefined ? Math.min(numResults, 20) : undefined,
-        includeDomains,
-        excludeDomains,
-        startDate,
-        endDate,
-        searchDepth: opts.searchDepth,
-        topic: opts.topic,
-        days: opts.days,
-        timeRange: opts.timeRange,
-        chunksPerSource: opts.chunksPerSource,
-        includeAnswer: opts.includeAnswer,
-        answerDepth: opts.answerDepth,
-        includeRawContent: opts.includeRawContent,
-        rawContentFormat: opts.rawContentFormat,
-        includeImages: opts.includeImages,
-        includeImageDescriptions: opts.includeImageDescriptions,
-        includeFavicon: opts.includeFavicon,
-        country: opts.country,
-        autoParameters: opts.autoParameters,
-        exactMatch: opts.exactMatch,
-        includeUsage: opts.includeUsage,
-        safeSearch: opts.safeSearch,
-      }, apiKey, signal);
+      const searchProvider = params.provider as SearchProvider;
+      const provider = providers[searchProvider];
+      const request: SearchRequest = {
+        query: params.query,
+        numResults: params.numResults,
+        includeDomains: params.includeDomains,
+        excludeDomains: params.excludeDomains,
+        startDate: params.startDate,
+        endDate: params.endDate,
+        options: params.options,
+      };
+      provider.validate?.(request);
+      const resolvedAuth = await ctx.modelRegistry.getProviderAuth(provider.authId);
+      const apiKey = resolvedAuth?.auth.apiKey?.trim() || getApiKey(provider);
+      if (!apiKey) throw missingKeyError(provider);
+      return provider.executeSearch(request, apiKey, signal);
     },
     renderCall(args, theme, context) {
       const text = (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
