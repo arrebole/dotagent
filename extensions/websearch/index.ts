@@ -99,10 +99,7 @@ export default function websearchExtension(pi: ExtensionAPI) {
         theme.fg("toolTitle", theme.bold("websearch ")) +
         theme.fg("accent", args.provider) +
         " " +
-        theme.fg("muted", args.query) +
-        (!context.expanded
-          ? theme.fg("muted", " (") + keyHint("app.tools.expand", "expand") + theme.fg("muted", ") ")
-          : ""),
+        theme.fg("muted", args.query),
       );
       return text;
     },
