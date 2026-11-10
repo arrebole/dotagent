@@ -1,1 +1,0 @@
-npx skills add https://github.com/tt-a1i/archify --skill archify
