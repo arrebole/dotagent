@@ -1,5 +1,1 @@
-### old tui
-npx skills add https://github.com/herdrdev/herdr --skill herdr
-
-### new herdr-core skill
-hc --skill
+npx skills add https://github.com/herdrdev/herdr-core --skill herdr-core
