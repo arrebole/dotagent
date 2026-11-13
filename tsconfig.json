@@ -8,15 +8,19 @@
       "ESNext"
     ],
     "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "noEmit": true,
     "isolatedModules": true,
+    "erasableSyntaxOnly": true,
     "verbatimModuleSyntax": true,
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true
   },
   "include": [
-    "extensions/**/*.ts"
+    "extensions/**/*.ts",
+    "tests/**/*.ts"
   ],
   "exclude": [
     "node_modules"

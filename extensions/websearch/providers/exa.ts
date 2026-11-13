@@ -1,11 +1,11 @@
-import { missingKeyError } from "../config";
-import { formatExaResults } from "../formatters";
-import { fetchWithTimeout } from "../http";
-import type { SearchProviderAdapter, SearchRequest } from "./types";
+import { missingKeyError } from "../config.ts";
+import { formatExaResults } from "../formatters.ts";
+import { fetchWithTimeout } from "../http.ts";
+import type { SearchProviderAdapter, SearchRequest, SearchResult } from "./types.ts";
 
 const baseUrl = "https://api.exa.ai";
 
-async function executeSearch(request: SearchRequest, apiKey: string, signal?: AbortSignal) {
+async function executeSearch(request: SearchRequest, apiKey: string, signal?: AbortSignal): Promise<SearchResult> {
   if (!apiKey) throw missingKeyError(exa);
   const opts = request.options ?? {};
 
@@ -43,7 +43,7 @@ async function executeSearch(request: SearchRequest, apiKey: string, signal?: Ab
 
   const data = (await response.json()) as Record<string, unknown>;
   return {
-    content: [{ type: "text" as const, text: formatExaResults(data) }],
+    content: [{ type: "text", text: formatExaResults(data) }],
     details: {
       provider: "exa",
       requestId: data.requestId,

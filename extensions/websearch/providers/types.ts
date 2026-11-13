@@ -1,21 +1,9 @@
-import type { SearchOptions } from "./options";
+import type { AgentToolResult } from "@earendil-works/pi-coding-agent";
+import type { SearchInput } from "../schema.ts";
 
-export type SearchProvider = "exa" | "tavily";
-
-export interface SearchRequest {
-  query: string;
-  numResults?: number;
-  includeDomains?: string[];
-  excludeDomains?: string[];
-  startDate?: string;
-  endDate?: string;
-  options?: SearchOptions;
-}
-
-export interface SearchResult {
-  content: Array<{ type: "text"; text: string }>;
-  details: Record<string, unknown>;
-}
+export type SearchProvider = SearchInput["provider"];
+export type SearchRequest = Omit<SearchInput, "provider">;
+export type SearchResult = AgentToolResult<Record<string, unknown>>;
 
 // 新服务商只需提供认证元数据、参数适配及搜索实现。
 export interface SearchProviderAdapter {

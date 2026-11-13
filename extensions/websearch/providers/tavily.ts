@@ -1,7 +1,7 @@
-import { missingKeyError } from "../config";
-import { formatTavilyResults } from "../formatters";
-import { fetchWithTimeout } from "../http";
-import type { SearchProviderAdapter, SearchRequest } from "./types";
+import { missingKeyError } from "../config.ts";
+import { formatTavilyResults } from "../formatters.ts";
+import { fetchWithTimeout } from "../http.ts";
+import type { SearchProviderAdapter, SearchRequest, SearchResult } from "./types.ts";
 
 const baseUrl = "https://api.tavily.com";
 
@@ -20,7 +20,7 @@ function validate(request: SearchRequest): void {
   }
 }
 
-async function executeSearch(request: SearchRequest, apiKey: string, signal?: AbortSignal) {
+async function executeSearch(request: SearchRequest, apiKey: string, signal?: AbortSignal): Promise<SearchResult> {
   if (!apiKey) throw missingKeyError(tavily);
   const opts = request.options ?? {};
   const includeAnswer = opts.includeAnswer === false ? false : opts.answerDepth ?? opts.includeAnswer ?? true;
@@ -64,7 +64,7 @@ async function executeSearch(request: SearchRequest, apiKey: string, signal?: Ab
 
   const data = (await response.json()) as Record<string, unknown>;
   return {
-    content: [{ type: "text" as const, text: formatTavilyResults(data, includeRawContent !== false) }],
+    content: [{ type: "text", text: formatTavilyResults(data, includeRawContent !== false) }],
     details: {
       provider: "tavily",
       query: data.query,
