@@ -58,11 +58,11 @@ export default function websearchExtension(pi: ExtensionAPI) {
   pi.registerTool({
     name: "websearch",
     label: "Web Search",
+    promptSnippet: "从网络上搜索资料",
     description:
       "联网检索：新闻、财经或快速查询选 Tavily；语义检索、深入研究或结构化输出选 Exa。" +
       "常用参数在顶层，服务商专属参数放在 options；网页正文只返回截取内容，单次输出最多约 24KB。" +
       "生成的回答不是原始证据，重要结论请核验结果中的来源链接。",
-    promptSnippet: "联网搜索：新闻/财经选 Tavily；语义研究/结构化输出选 Exa；重要结论核验来源",
     parameters: Type.Object({
       provider: StringEnum(["exa", "tavily"] as const, {
         description: "搜索服务商：Tavily 用于快速查询、新闻和财经；Exa 用于语义检索、深入研究和结构化输出。",
