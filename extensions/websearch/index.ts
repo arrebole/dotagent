@@ -40,13 +40,19 @@ export default function websearchExtension(pi: ExtensionAPI) {
 
   pi.registerTool({
     name: "websearch",
+    // exposure: "deferred",
     label: "Web Search",
-    promptSnippet: "从网络上搜索资料",
+    promptSnippet: "Search the web for up-to-date information",
     description:
-      "联网检索：新闻、财经或快速查询选 Tavily；语义检索、深入研究或结构化输出选 Exa；" +
-      "需要同时获取网页正文，或检索代码仓库、论文、PDF、图片时选 Firecrawl。" +
-      "常用参数在顶层，服务商专属参数放在 options；网页正文只返回截取内容，单次输出最多约 24KB。" +
-      "生成的回答不是原始证据，重要结论请核验结果中的来源链接。",
+      // 开头的关键词供 tool_search（BM25）匹配；工具名 websearch 是单个词，无法命中 "web"/"search"。
+      "Web search / internet search: search the web online for up-to-date web pages, news, research papers, PDFs, images and code. " +
+      "Choose Tavily for news, finance, or quick lookups; Exa for semantic search, in-depth research, or structured output; " +
+      "Firecrawl when you also need full page content, or to search code repositories, papers, PDFs, or images. " +
+      "Common parameters are top-level; provider-specific parameters go in options. Page content is truncated, " +
+      "and each call returns at most about 24KB. Generated answers are not primary evidence; " +
+      "verify important conclusions against the source links in the results. " +
+      // 中文关键词供 tool_search 匹配中文查询。
+      "关键词：联网搜索、网络搜索、网页搜索、上网查询、新闻、资讯、论文、图片。",
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     parameters: searchParameters,
     async execute(_toolCallId, params: SearchInput, signal, _onUpdate, ctx) {

@@ -3,14 +3,14 @@ import { searchOptions } from "./providers/options.ts";
 
 export const searchParameters = obj({
   provider: oneOf(["exa", "tavily", "firecrawl"], {
-    description: "搜索服务商：Tavily 用于快速查询、新闻和财经；Exa 用于语义检索、深入研究和结构化输出；Firecrawl 用于搜索并抓取网页正文，或检索代码仓库、论文、PDF、新闻和图片。",
+    description: "Search provider: Tavily for quick lookups, news, and finance; Exa for semantic search, in-depth research, and structured output; Firecrawl for search with full page content, or for code repositories, papers, PDFs, news, and images.",
   }),
-  query: str({ minLength: 1, description: "搜索词；尽量聚焦一个具体问题。" }),
-  numResults: opt(int({ minimum: 1, maximum: 100, default: 10, description: "结果数量，默认 10。Exa 和 Firecrawl 最多 100；Tavily 最多 20，超出会报错。" })),
-  includeDomains: opt(arr(str(), { description: "仅搜索这些域名。" })),
-  excludeDomains: opt(arr(str(), { description: "排除这些域名。" })),
-  startDate: opt(str({ description: "最早发布日期；Exa 接受 ISO 8601，Tavily 和 Firecrawl 要求 YYYY-MM-DD。" })),
-  endDate: opt(str({ description: "最晚发布日期；Exa 接受 ISO 8601，Tavily 和 Firecrawl 要求 YYYY-MM-DD。" })),
+  query: str({ minLength: 1, description: "Search query; keep it focused on one specific question." }),
+  numResults: opt(int({ minimum: 1, maximum: 100, default: 10, description: "Number of results, default 10. Exa and Firecrawl allow up to 100; Tavily allows up to 20 and rejects larger values." })),
+  includeDomains: opt(arr(str(), { description: "Only search these domains." })),
+  excludeDomains: opt(arr(str(), { description: "Exclude these domains." })),
+  startDate: opt(str({ description: "Earliest publish date. Exa accepts ISO 8601; Tavily and Firecrawl require YYYY-MM-DD." })),
+  endDate: opt(str({ description: "Latest publish date. Exa accepts ISO 8601; Tavily and Firecrawl require YYYY-MM-DD." })),
   options: opt(searchOptions),
 });
 
