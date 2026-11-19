@@ -131,3 +131,60 @@ export function formatTavilyResults(data: Record<string, unknown>, preferRawCont
   if (data.response_time) parts.push("---", `Response time: ${data.response_time}s`);
   return limitOutput(parts.join("\n"));
 }
+
+function formatFirecrawlItems(
+  parts: string[],
+  heading: string,
+  items: Array<Record<string, unknown>>,
+  snippetKey: "description" | "snippet",
+): void {
+  parts.push(`## ${heading}（${items.length}）`, "");
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const metadata = (item.metadata ?? {}) as Record<string, unknown>;
+    const title = item.title ?? metadata.title ?? "(no title)";
+    const url = typeof item.url === "string" ? item.url : "";
+    const date = typeof item.date === "string" ? item.date : "";
+    const snippet = typeof item[snippetKey] === "string" ? item[snippetKey] as string : "";
+    const summary = typeof item.summary === "string" ? item.summary : "";
+    const markdown = typeof item.markdown === "string" ? item.markdown : "";
+    const error = typeof metadata.error === "string" ? metadata.error : "";
+
+    parts.push(`### ${i + 1}. ${limitField(String(title), 200)}`);
+    if (url) parts.push(`**URL:** ${url}`);
+    if (date) parts.push(`**Date:** ${limitField(date, 100)}`);
+    if (snippet) parts.push(`**Snippet:** ${limitField(snippet, 1000)}`);
+    if (summary) parts.push(`**Summary:** ${limitField(summary, 2000)}`);
+    if (markdown) parts.push("", limitField(markdown, 2000));
+    if (error) parts.push(`**Scrape error:** ${limitField(error, 300)}`);
+    parts.push("");
+  }
+}
+
+export function formatFirecrawlResults(data: Record<string, unknown>): string {
+  const results = (data.data ?? {}) as Record<string, unknown>;
+  const list = (key: string) => Array.isArray(results[key]) ? results[key] as Array<Record<string, unknown>> : [];
+  const web = list("web");
+  const news = list("news");
+  const images = list("images");
+  const parts: string[] = [];
+
+  if (typeof data.warning === "string" && data.warning) parts.push(`> 警告：${limitField(data.warning, 500)}`, "");
+  if (web.length) formatFirecrawlItems(parts, "网页结果", web, "description");
+  if (news.length) formatFirecrawlItems(parts, "新闻结果", news, "snippet");
+  if (images.length) {
+    const formattedImages = images.slice(0, 10).flatMap((image) => {
+      const imageUrl = typeof image.imageUrl === "string" ? image.imageUrl : "";
+      if (!imageUrl) return [];
+      const title = typeof image.title === "string" ? `${limitField(image.title, 200)}: ` : "";
+      const size = image.imageWidth && image.imageHeight ? ` (${image.imageWidth}x${image.imageHeight})` : "";
+      const page = typeof image.url === "string" ? ` — ${image.url}` : "";
+      return [`- ${title}${imageUrl}${size}${page}`];
+    });
+    if (formattedImages.length) parts.push(`## 图片（${images.length}）`, ...formattedImages, "");
+  }
+  if (!web.length && !news.length && !images.length) parts.push("未找到结果。");
+
+  if (typeof data.creditsUsed === "number") parts.push("---", `Credits used: ${data.creditsUsed}`);
+  return limitOutput(parts.join("\n"));
+}

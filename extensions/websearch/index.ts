@@ -9,11 +9,12 @@ import { createProvider, envApiKeyAuth, type ProviderStreams } from "@earendil-w
 import { Container, Text } from "@earendil-works/pi-tui";
 import { missingKeyError } from "./config.ts";
 import exa from "./providers/exa.ts";
+import firecrawl from "./providers/firecrawl.ts";
 import tavily from "./providers/tavily.ts";
 import { searchParameters, type SearchInput } from "./schema.ts";
 import type { SearchProvider, SearchProviderAdapter } from "./providers/types.ts";
 
-const providers: Record<SearchProvider, SearchProviderAdapter> = { exa, tavily };
+const providers: Record<SearchProvider, SearchProviderAdapter> = { exa, tavily, firecrawl };
 
 // createProvider requires an API implementation even for providers with no models.
 const authOnlyApi: ProviderStreams = {
@@ -42,7 +43,8 @@ export default function websearchExtension(pi: ExtensionAPI) {
     label: "Web Search",
     promptSnippet: "从网络上搜索资料",
     description:
-      "联网检索：新闻、财经或快速查询选 Tavily；语义检索、深入研究或结构化输出选 Exa。" +
+      "联网检索：新闻、财经或快速查询选 Tavily；语义检索、深入研究或结构化输出选 Exa；" +
+      "需要同时获取网页正文，或检索代码仓库、论文、PDF、图片时选 Firecrawl。" +
       "常用参数在顶层，服务商专属参数放在 options；网页正文只返回截取内容，单次输出最多约 24KB。" +
       "生成的回答不是原始证据，重要结论请核验结果中的来源链接。",
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
