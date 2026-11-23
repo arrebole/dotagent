@@ -1,6 +1,6 @@
 ---
 name: herdr-core
-description: "Manual-only: agent-to-agent messaging and discovery via herdr-core (hc); launches only on explicit request, shown in herdr-app, then cleaned up."
+description: "Manual-only: agent-to-agent messaging and discovery via herdr-core (hc); launches only on explicit request, always attached into herdr-app (herdr.space/herdr.tab labels in the same hc run), then cleaned up."
 ---
 
 # Herdr Core
@@ -21,16 +21,29 @@ hc wait review --timeout 120; hc read review --lines 100
 ## Launch (explicit request only, direct or relayed)
 
 - Use `--bg`, `--name`, `--cwd`; put an agent's first task in `run`. Codex needs `--no-daemon`.
+- **Attach in the same command, every time**: add both display labels (next section). A terminal started without them is invisible in herdr-app, and relabeling an adopted one does not move it. "Launch now, attach later" is a bug, not a shortcut.
 - On `spawn_failed`, retry with `"$(command -v <program>)"`; the core's PATH may lack `~/.local/bin`.
 - For agents you launched, accept folder trust (`hc keys <t> enter`) and skip update prompts. Other `blocked` prompts: ask the user, never `send --force`.
 
-## Attach to herdr-app
+```sh
+# preferred: `hcv` wraps `hc run` and always adds the labels (~/.local/bin/hcv)
+hcv --bg --name fix --cwd /path/to/repo claude "Fix the failing test; no subagents; report with hc send $HC_TERMINAL_ID when done or stuck."
 
-Needs only hc, so it works on remote servers too: the connected app adopts terminals labeled `herdr.space`; unlabeled ones stay hidden.
+# without hcv: the same labels on a plain hc run (jq)
+hc run --bg $(hc get "$HC_TERMINAL_ID" --json | jq -r '.labels|. as $l|["herdr.space","herdr.tab"][]|"--label \(.)=\($l[.])"') \
+  --name fix --cwd /path/to/repo claude "Fix the failing test; no subagents; report with hc send $HC_TERMINAL_ID when done or stuck."
+```
 
-1. Copy `herdr.space` and `herdr.tab` from `hc get $HC_TERMINAL_ID --json` (for `--on box`, from a `box/t…` terminal; IDs are machine-local). If none, use `sp` plus a hyphenless UUID.
-2. Set both labels at launch, so it joins your tab. Omit `herdr.tab` or change space only if the user asks. Relabeling an adopted terminal doesn't move it.
-3. Verify: `hc get <t>` shows `where: "<space> / <tab>"`. If missing, report display unverified; never install, connect or restart anything.
+If that lookup fails, your own terminal has no labels: follow step 1 below, never drop the labels. With `--on <machine>`, take the labels from a terminal on that machine (`hc get machine/t7`); `hcv` only knows this one.
+
+## Attach to herdr-app (required, not optional)
+
+Every launch is visible: the connected app adopts terminals labeled `herdr.space`; unlabeled ones stay hidden. Needs only hc, so it works on remote servers too. Skipping this is the most common launch defect — the launch rules above include it, treat this section as the detail.
+
+1. Take `herdr.space` and `herdr.tab` from `hc get $HC_TERMINAL_ID --json` (for `--on box`, from a `box/t…` terminal; IDs are machine-local). If none, use `sp` plus a hyphenless UUID.
+2. Pass both as `--label` in the `hc run` command, so it joins your tab. Drop `herdr.tab` or change space only if the user asks.
+3. Verify the labels, not `where`: `hc get <t> --json` must show `labels.herdr.space` (and `herdr.tab`). A `where` label can appear even on a hidden terminal, so it proves nothing. If the app shows it as `<space> / <tab>`, fine; if you cannot see the app, report display unverified — never install, connect or restart anything.
+4. Repair: a terminal not yet adopted can be fixed with `hc label <t> herdr.space=… herdr.tab=…`; once adopted, labels no longer move it — `hc kill <t>`, then relaunch with the labels.
 
 ```sh
 hc run --bg --name codex --cwd /path/to/repo --label herdr.space=<space> --label herdr.tab=<tab> \
