@@ -29,8 +29,7 @@ The connected herdr-app adopts terminals labeled `herdr.space`; unlabeled ones s
 
 ```sh
 hc get $HC_TERMINAL_ID --json | grep -oE '"herdr\.(space|tab)":"[^"]*"'   # your space and tab
-hc run --bg --name codex --cwd /path/to/repo --label herdr.space=<space> --label herdr.tab=<tab> \
-  "$(command -v codex)" --no-daemon
+hc run --bg --name codex --cwd /path/to/repo --label herdr.space=<space> --label herdr.tab=<tab> "$(command -v codex)" --no-daemon
 hc get codex --json | grep -oE '"herdr\.(space|tab)":"[^"]*"'             # both must be there
 ```
 
